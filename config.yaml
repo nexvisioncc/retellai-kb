@@ -29,6 +29,12 @@ sources:
     
   - type: file
     path: sources/appointment-policy.md
+    
+  - type: file
+    path: sources/pricing.md
+    
+  - type: file
+    path: sources/sample-projects.md
 
 # URLs to sync (optional)
 # urls:
