@@ -2,11 +2,7 @@
 /**
  * Sync Knowledge Base to Retell AI
  * 
- * This script:
- * 1. Reads config.yaml
- * 2. Creates/updates knowledge base in Retell
- * 3. Uploads source files
- * 4. Links KB to agent
+ * This script creates/updates knowledge base with text sources
  */
 
 const fs = require('fs');
@@ -31,24 +27,64 @@ if (!AGENT_ID) {
 const config = yaml.load(fs.readFileSync('config.yaml', 'utf8'));
 console.log('📋 Config loaded:', config.knowledge_base.name);
 
-// API helper function
-function apiRequest(method, path, data = null) {
+// Read source files and convert to knowledge_base_texts format
+function readSourceTexts() {
+  const texts = [];
+  
+  for (const source of config.sources) {
+    if (source.type === 'file') {
+      const filePath = path.join(process.cwd(), source.path);
+      if (fs.existsSync(filePath)) {
+        const content = fs.readFileSync(filePath, 'utf8');
+        const filename = path.basename(source.path, path.extname(source.path));
+        // Convert filename to title (e.g., "company-info" -> "Company Info")
+        const title = filename
+          .replace(/-/g, ' ')
+          .replace(/_/g, ' ')
+          .replace(/\b\w/g, l => l.toUpperCase());
+        
+        texts.push({
+          title: title,
+          text: content
+        });
+        console.log(`📄 Loaded: ${source.path} -> "${title}"`);
+      } else {
+        console.warn(`⚠️ File not found: ${source.path}`);
+      }
+    }
+  }
+  
+  return texts;
+}
+
+// Create knowledge base with texts
+function createKnowledgeBase(name, texts) {
   return new Promise((resolve, reject) => {
-    const body = data ? JSON.stringify(data) : null;
+    // Build multipart form data
+    const boundary = '----FormBoundary' + Date.now();
+    const parts = [];
+    
+    // Add knowledge_base_name
+    parts.push(`--${boundary}\r\nContent-Disposition: form-data; name="knowledge_base_name"\r\n\r\n${name}\r\n`);
+    
+    // Add knowledge_base_texts as JSON
+    parts.push(`--${boundary}\r\nContent-Disposition: form-data; name="knowledge_base_texts"\r\n\r\n${JSON.stringify(texts)}\r\n`);
+    
+    // End boundary
+    parts.push(`--${boundary}--\r\n`);
+    
+    const body = parts.join('');
     
     const options = {
       hostname: 'api.retellai.com',
-      path: path,
-      method: method,
+      path: '/create-knowledge-base',
+      method: 'POST',
       headers: {
         'Authorization': `Bearer ${RETELL_API_KEY}`,
-        'Content-Type': 'application/json'
+        'Content-Type': `multipart/form-data; boundary=${boundary}`,
+        'Content-Length': Buffer.byteLength(body)
       }
     };
-
-    if (body) {
-      options.headers['Content-Length'] = Buffer.byteLength(body);
-    }
 
     const req = https.request(options, (res) => {
       let responseData = '';
@@ -62,88 +98,83 @@ function apiRequest(method, path, data = null) {
             reject(new Error(`API Error ${res.statusCode}: ${json.message || responseData}`));
           }
         } catch (e) {
-          resolve(responseData);
+          reject(new Error(`Failed to parse response: ${e.message}`));
         }
       });
     });
 
     req.on('error', reject);
-    if (body) req.write(body);
+    req.write(body);
     req.end();
   });
 }
 
-// Read source files
-function readSourceFiles() {
-  const sources = [];
-  
-  for (const source of config.sources) {
-    if (source.type === 'file') {
-      const filePath = path.join(process.cwd(), source.path);
-      if (fs.existsSync(filePath)) {
-        const content = fs.readFileSync(filePath, 'utf8');
-        sources.push({
-          type: 'text',
-          name: path.basename(source.path, path.extname(source.path)),
-          content: content
-        });
-        console.log(`📄 Loaded: ${source.path}`);
-      } else {
-        console.warn(`⚠️ File not found: ${source.path}`);
-      }
-    }
-  }
-  
-  return sources;
-}
-
-// Create or update knowledge base
-async function syncKnowledgeBase() {
-  try {
-    // Check if KB already exists
-    console.log('🔍 Checking existing knowledge bases...');
-    const kbs = await apiRequest('GET', '/list-knowledge-bases');
-    
-    let kbId = null;
-    const existingKb = kbs.find(kb => kb.knowledge_base_name === config.knowledge_base.name);
-    
-    if (existingKb) {
-      kbId = existingKb.knowledge_base_id;
-      console.log(`✅ Found existing KB: ${kbId}`);
-    } else {
-      // Create new KB
-      console.log('🆕 Creating new knowledge base...');
-      const newKb = await apiRequest('POST', '/create-knowledge-base', {
-        knowledge_base_name: config.knowledge_base.name,
-        knowledge_base_description: config.knowledge_base.description
-      });
-      kbId = newKb.knowledge_base_id;
-      console.log(`✅ Created KB: ${kbId}`);
-    }
-
-    // Read and add source files
-    const sources = readSourceFiles();
-    
-    if (sources.length > 0) {
-      console.log(`📤 Adding ${sources.length} sources to KB...`);
-      
-      for (const source of sources) {
-        await apiRequest('POST', `/add-knowledge-base-sources/${kbId}`, {
-          sources: [source]
-        });
-        console.log(`✅ Added: ${source.name}`);
-      }
-    }
-
-    // Link KB to agent
-    console.log('🔗 Linking KB to agent...');
-    await apiRequest('PATCH', `/update-agent/${AGENT_ID}`, {
+// Update agent with knowledge base
+function updateAgentKnowledgeBase(agentId, kbId) {
+  return new Promise((resolve, reject) => {
+    const body = JSON.stringify({
       knowledge_base_ids: [kbId]
     });
-    console.log('✅ KB linked to agent');
+    
+    const options = {
+      hostname: 'api.retellai.com',
+      path: `/update-agent/${agentId}`,
+      method: 'PATCH',
+      headers: {
+        'Authorization': `Bearer ${RETELL_API_KEY}`,
+        'Content-Type': 'application/json',
+        'Content-Length': Buffer.byteLength(body)
+      }
+    };
 
+    const req = https.request(options, (res) => {
+      let responseData = '';
+      res.on('data', (chunk) => responseData += chunk);
+      res.on('end', () => {
+        try {
+          const json = JSON.parse(responseData);
+          if (res.statusCode >= 200 && res.statusCode < 300) {
+            resolve(json);
+          } else {
+            reject(new Error(`API Error ${res.statusCode}: ${json.message || responseData}`));
+          }
+        } catch (e) {
+          reject(new Error(`Failed to parse response: ${e.message}`));
+        }
+      });
+    });
+
+    req.on('error', reject);
+    req.write(body);
+    req.end();
+  });
+}
+
+// Main sync function
+async function syncKnowledgeBase() {
+  try {
+    // Read source texts
+    const texts = readSourceTexts();
+    
+    if (texts.length === 0) {
+      console.error('❌ No source files found');
+      process.exit(1);
+    }
+    
+    console.log(`📤 Creating knowledge base with ${texts.length} text sources...`);
+    
+    // Create knowledge base
+    const kb = await createKnowledgeBase(config.knowledge_base.name, texts);
+    console.log(`✅ Knowledge Base created: ${kb.knowledge_base_id}`);
+    console.log(`   Status: ${kb.status}`);
+    
+    // Link to agent
+    console.log('🔗 Linking KB to agent...');
+    await updateAgentKnowledgeBase(AGENT_ID, kb.knowledge_base_id);
+    console.log('✅ KB linked to agent');
+    
     console.log('\n🎉 Knowledge Base sync complete!');
-    console.log(`📊 KB ID: ${kbId}`);
+    console.log(`📊 KB ID: ${kb.knowledge_base_id}`);
     console.log(`🤖 Agent: ${AGENT_ID}`);
     
   } catch (error) {
