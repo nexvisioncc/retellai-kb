@@ -1,0 +1,36 @@
+# Nexvision AI Receptionist - Knowledge Base Configuration
+
+# Agent Configuration
+agent_id: agent_8d781886289fdc010ed868a33c
+agent_name: Nexvision Receptionist
+
+# Knowledge Base Settings
+knowledge_base:
+  name: Nexvision Receptionist KB
+  description: Company information, services, and FAQs for AI receptionist
+  
+  # Retrieval settings
+  chunks_to_retrieve: 3
+  similarity_threshold: 0.6
+  
+  # Auto-refresh settings
+  auto_refresh: true
+  
+# Source files to sync
+sources:
+  - type: file
+    path: sources/company-info.md
+    
+  - type: file
+    path: sources/services.md
+    
+  - type: file
+    path: sources/faq.md
+    
+  - type: file
+    path: sources/appointment-policy.md
+
+# URLs to sync (optional)
+# urls:
+#   - https://nexvision.cc/about
+#   - https://nexvision.cc/services

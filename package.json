@@ -1,0 +1,12 @@
+{
+  "name": "retellai-kb-sync",
+  "version": "1.0.0",
+  "description": "Knowledge Base sync for Retell AI",
+  "scripts": {
+    "sync": "./scripts/sync-to-retell.sh"
+  },
+  "dependencies": {
+    "axios": "^1.6.0",
+    "js-yaml": "^4.1.0"
+  }
+}
