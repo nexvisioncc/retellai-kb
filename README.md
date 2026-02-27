@@ -1,46 +1,39 @@
-# Retell AI Knowledge Base Sync
+# ⚠️ DEPRECATED - Merged into ai-voice-receptionist
 
-This repository stores Knowledge Base content for the Nexvision AI Voice Receptionist and automatically syncs it to Retell AI.
+This repository has been **consolidated** into the main [ai-voice-receptionist](https://github.com/nexvisioncc/ai-voice-receptionist) repository.
 
-## Structure
+## New Location
+
+All knowledge base content and sync functionality is now in:
 
 ```
-knowledge-base/
-├── README.md              # This file
-├── config.yaml            # KB configuration
-├── sources/               # KB source files
-│   ├── faq.md
-│   ├── services.md
-│   └── policies.md
-└── .github/
-    └── workflows/
-        └── sync-kb.yml    # Auto-sync workflow
+https://github.com/nexvisioncc/ai-voice-receptionist/tree/main/knowledge-base
 ```
 
-## How It Works
+## What Changed
 
-1. **Edit KB content** in `sources/` folder
-2. **Push to GitHub** → triggers automatic sync to Retell
-3. **Retell AI agent** gets updated with new KB content
+- ✅ All KB source files moved to `knowledge-base/sources/`
+- ✅ Sync scripts moved to `knowledge-base/scripts/`
+- ✅ GitHub Actions workflow integrated into main repo
+- ✅ Comprehensive README with full documentation
 
-## Supported Formats
+## Migration Guide
 
-- Markdown (.md) - **Recommended**
-- PDF (.pdf)
-- Text (.txt)
-- Word (.docx)
-- URLs (for web content)
+If you were previously editing KB files here:
 
-## Pricing
+1. Clone the main repository:
+   ```bash
+   git clone https://github.com/nexvisioncc/ai-voice-receptionist.git
+   ```
 
-- First 10 KBs: **FREE**
-- Additional KBs: $8/month each
-- Usage: +$0.005/minute for calls using KB
+2. Edit KB files in `knowledge-base/sources/`
 
-## Manual Sync
+3. Push changes - auto-sync will update Retell AI
 
-If needed, you can manually trigger sync:
+## Archive Notice
 
-```bash
-./scripts/sync-to-retell.sh
-```
+This repository is now archived and will no longer receive updates. Please use the main [ai-voice-receptionist](https://github.com/nexvisioncc/ai-voice-receptionist) repository instead.
+
+---
+
+*Last updated: 2026-02-27*
