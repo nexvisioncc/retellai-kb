@@ -11,7 +11,7 @@ on:
 
 jobs:
   sync-knowledge-base:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     
     steps:
     - name: Checkout repository
@@ -31,10 +31,12 @@ jobs:
         AGENT_ID: agent_8d781886289fdc010ed868a33c
       run: node scripts/sync-kb.js
       
-    - name: Notify success
-      if: success()
-      run: echo "✅ Knowledge Base synced successfully to Retell AI"
-      
+    - name: Health Check
+      run: |
+        echo "✅ Knowledge Base synced successfully to Retell AI"
+        echo "KB Sources:"
+        ls -la sources/
+        
     - name: Notify failure
       if: failure()
       run: echo "❌ Failed to sync Knowledge Base to Retell AI"
